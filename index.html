@@ -1,4 +1,8 @@
+<!DOCTYPE html>
 <html>
+<head>
+   <title>cornea</title>
+</head>
 <body>
 <div>
     <p>
@@ -6,6 +10,7 @@
     </p>
     <input id='a' type='text'>
     <button onclick="send()">send</button>
+    <div id='container'></div>
 </div>
 </body>
 <script src='//cdn.bootcdn.net/ajax/libs/socket.io/3.0.4/socket.io.js'></script>
@@ -15,6 +20,13 @@
         console.log('???');
         socket.on('connect',()=>{
             console.log(socket.id);
+            socket.on('chat message',(msg)=>{
+                /*console.log(msg);*/
+                var ddiv=document.createElement('div');
+                ddiv.innerText=msg;
+                var body=document.getElementById('container');
+                body.appendChild(ddiv);
+            })
         })
     }
     function send(){
@@ -22,10 +34,12 @@
         var tex=document.getElementById('a').innerText;
         var ajax=new XMLHttpRequest;
         ajax.open('post','http://127.0.0.1');
-        ajax.send('tex');*/
-        var tex=document.getElementById('a').value;
-        console.log(tex);
-        socket.emit('chat message',tex);
+        ajax.send('tex');
+        ?
+        */
+        var tex=document.getElementById('a').value;//获取input的内容
+        /*console.log(tex);*/
+        socket.emit('chat message',socket.id+' : '+tex);
     }
 </script>
 </html>

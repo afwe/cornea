@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<hetml>
+    <head>
+        <title>camera</title>
+    </head>
+    <body>
+        <div class='container'>
+            <video id='video-local' controls autoplay></video>
+        </div>
+        
+        <script>
+        function getUserMedia(constrains, success, error){
+            let promise;
+            if(navigator.mediaDevices.getUserMedia){
+                promise=navigator.mediaDevices.getUserMedia(constrains).then(success).catch(error);
+                //新版api
+            } else if (navigator.webkitgGetUserMedia){
+                promise=navigator.webkitgGetUserMedia(constrains).then(success).catch(error);
+                //webkit内核
+            } else if (navigator.mozGetUserMedia){
+                promise=navigator.mozGetUserMedia(constrains).then(success).catch(error);
+                //firefox
+            } else if (navigator.getUserMedia){
+                promise=navigator.getUserMedia(constrains).then(success).catch(error);
+                //旧版api
+            }
+            return promise;
+        }
+
+        function canGetUserMediaUse(){
+            //!!判断对象是否存在
+            return !! (navigator.mediaDevices.getUserMedia || navigator.webkitgGetUserMedia || navigator.mozGetUserMedia || navigator.getUserMedia)
+        }
+
+        const videoEle=document.getElementById('video-local');
+
+        window.onload= ()=>{
+            if(canGetUserMediaUse()){
+                getUserMedia({
+                    video : true,
+                    audio : false
+                }, (stream)=>{
+                    videoEle.srcObject = stream;
+                }, (err)=>{
+                    console.log('开启媒体失败',err.naem,err.message);
+                }) 
+            } else{
+                alert('浏览器不兼容');
+            }
+        }
+        
+    </script>
+    <style type='text/css'>
+        .container{
+            width:1000px;
+            height:800px;
+            display:flex;
+            flex-flow:column;
+            justify-content: center;/*株洲居中*/
+            align-items: center;/*副軸居中*/
+
+        }
+        .container > vedio{
+            width:50%;
+            height:50%;
+        }
+
+    </style>
+    </body>
+    
+</hetml>
