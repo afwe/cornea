@@ -3,7 +3,7 @@ const { connect } = require('http2');
 
 var app=require('express')();
 var http=require('http').createServer(app);
-var io=require('socket.io')(https);
+var io=require('socket.io')(http);
 var fs=require('fs');
 
 //創建https
@@ -14,7 +14,6 @@ let sslOptions={
 
 const https = require('https').createServer(sslOptions, app);
 https.listen(443,()=>{
-    console.log(sslOptions.key);
     console.log('https:!!!');
 })
 
