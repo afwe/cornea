@@ -4,10 +4,16 @@
         <title>camera</title>
     </head>
     <body>
+        <p>cornea</p>
+        <p>当前用户:</p>
+        <p id='user'>无</p>
+        <p>在线用户:</p>
+        <ul id='user-list'>
+        </ul>    
         <div class='container'>
             <video id='video-local' controls autoplay></video>
         </div>
-        
+        <script src='//cdn.bootcdn.net/ajax/libs/socket.io/3.0.4/socket.io.js'></script>
         <script>
         function getUserMedia(constrains, success, error){
             let promise;
@@ -49,7 +55,56 @@
             }
         }
         
-    </script>
+        var socket = io('//');
+
+        socket.on('connect', ()=>{
+            console.log('user connect '+socket.id);
+            document.getElementById('user').innerText= socket.id;
+            socket.emit('new user on', {
+                sender: socket.id,
+                msg: 'im comming'
+            })
+            socket.on('connect ok',(data)=>{
+                console.log(data);
+                var newli = document.createElement('li');
+                var userlist=document.getElementById('user-list');
+                newli.innerText=data.sender;
+                newli.id=data.sender;
+                let newbutton=document.createElement('button');
+                newbutton.innerText='通话';
+                newbutton.onclick=function(){
+                    console.log('加密通话');
+                }
+                newli.appendChild(newbutton);
+                if(!!userlist) userlist.appendChild(newli);
+                /*添加主机*/
+            })
+            socket.on('need connect',(data)=>{
+                console.log(data);
+                var newli = document.createElement('li');
+                var userlist=document.getElementById('user-list');
+                newli.innerText=data.sender;
+                newli.id=data.sender;
+                let newbutton=document.createElement('button');
+                newbutton.innerText='通话';
+                newbutton.onclick=function(){
+                    /*onclick不是click*/
+                    console.log('加密通话')
+                }
+                newli.appendChild(newbutton);
+                if(!!userlist) userlist.appendChild(newli);
+                /*添加子机*/
+                socket.emit('connect ok',{receiver: data.sender, sender: socket.id});
+                
+
+            })
+            socket.on('user disconnected',(data)=>{
+                console.log(data);
+                document.getElementById(data).remove();/*下线*/
+            })
+        })
+
+        </script>
     <style type='text/css'>
         .container{
             width:1000px;
