@@ -12,7 +12,9 @@
         </ul>    
         <div class='container'>
             <video id='video-local' controls autoplay></video>
+            <div id='vedios'></div>
         </div>
+        
         <script src='//cdn.bootcdn.net/ajax/libs/socket.io/3.0.4/socket.io.js'></script>
         <script>
         function getUserMedia(constrains, success, error){
@@ -38,15 +40,29 @@
             return !! (navigator.mediaDevices.getUserMedia || navigator.webkitgGetUserMedia || navigator.mozGetUserMedia || navigator.getUserMedia)
         }
 
-        const videoEle=document.getElementById('video-local');
+        const vedioEle=document.getElementById('video-local');
 
         window.onload= ()=>{
+            initCamera();
+        }
+        
+        //peer connection
+        var pc=[];
+
+        const iceServer={
+            /*under construction*/
+        }
+
+        var localStream = null;
+
+        function initCamera(){
             if(canGetUserMediaUse()){
                 getUserMedia({
                     video : true,
                     audio : false
                 }, (stream)=>{
-                    videoEle.srcObject = stream;
+                    localStream = stream;
+                    vedioEle.srcObject = stream;
                 }, (err)=>{
                     console.log('开启媒体失败',err.naem,err.message);
                 }) 
@@ -54,10 +70,82 @@
                 alert('浏览器不兼容');
             }
         }
-        
+
+        function startCall(parterName, createOffer){
+
+            pc[parterName]= new RTCPeerConnection(iceServer);
+
+            if(localStream){
+                localStream.getTracks().forEach((track)=>{
+                    pc[parterName].addTrack(track, localStream);
+                })
+            }
+            else{
+                if(canGetUserMediaUse()){
+                    getUserMedia({
+                        vedio:true,
+                        audio:false
+                    }, function(stream){
+                        localStream = stream;
+                        vedioEle.srcObject=stream;
+
+                    }, function(error){
+                        console.log('访问用户媒体失败',err.naem,err.message);
+                    })
+                }
+                else alert('浏览器不兼容');
+            }
+            
+            if(createOffer){
+                pc[parterName].onnegotiationneeded =()=>{
+                    pc[parterName].createOffer().then((offer)=>{
+                        return pc[parterName].setLocalDescription(offer);
+                    }).then(()=>{
+                        socket.emit('sdp',{
+                            type : 'vedio-offer',
+                            description : pc[parterName].setLocalDescription,
+                            to : parterName,
+                            sender : socket.id
+
+                        })
+                    })
+                }
+
+                pc[parterName].onicecandidate = ({candidata})=>{
+                    socket.emit('ice candidates', {
+                        candidate : candidate,
+                        to : parterName,
+                        sender : socket.id
+                    })
+                }
+
+                pc[parterName].ontrack = (ev)=>{
+                    let str=ev.streams[0];
+                    if(document.getElementById(`${parterName}-vedio`)){
+                        document.getElementById(`${parterName}-vedio`).srcObject=str;
+                    }
+                    else{
+
+                        let newVedio = document.createElement('vedio');
+                        newVedio.id=`${parterName}-vedio`;
+                        newVedio.autoplay=true;
+                        newVedio.controls=true;
+                        //newVedio.className='remote-vedio';
+                        newVedio.srcObject=str;
+
+                        document.getElementById('vedios').appendChild(newVedio);
+                    }
+                }
+
+
+            }
+
+        }
+
         var socket = io('//');
 
         socket.on('connect', ()=>{
+            pc.push(socket.id);
             console.log('user connect '+socket.id);
             document.getElementById('user').innerText= socket.id;
             socket.emit('new user on', {
@@ -74,6 +162,7 @@
                 newbutton.innerText='通话';
                 newbutton.onclick=function(){
                     console.log('加密通话');
+                    startCall(document.getElementById(data.sender), true);
                 }
                 newli.appendChild(newbutton);
                 if(!!userlist) userlist.appendChild(newli);
@@ -102,6 +191,36 @@
                 console.log(data);
                 document.getElementById(data).remove();/*下线*/
             })
+        })
+
+        socket.on('sdp',(data)=>{
+            if(data.description.type === 'offer'){
+                startCall(data.sender, false);
+                let desc = RTCSessionDescription(data.description);
+                pc[data.sender].setRemoteDescription(desc).then(()=>{
+                    pc[data.sender].createAswer().then((answer)=>{
+                        return pc[data.sender].setLocalDescription(answer);
+                    })
+                }).then(()=>{
+                    socket.emit('sdp', {
+                        type : 'vedio-answer',
+                        description : pc[data.sender].localDescription,
+                        to : data.sender,
+                        sender : socket.id
+                    })
+                }).catch();
+            }
+            else if(data.description.type === 'answer'){
+                pc[data.sender].setRemoteDescription(new RTCSessionDescription(data.description));
+            }
+        })
+
+        socket.on('ice candidates', (data)=>{
+            console.log('ice candidate' + data.candidate);
+            if(data.candidate){
+                var candidate=new RTCIceCandidate(data.candidate);
+                pc[data.sender].addIceCandidate(candidate).catch();
+            }
         })
 
         </script>
