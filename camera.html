@@ -10,9 +10,8 @@
         <p>在线用户:</p>
         <ul id='user-list'>
         </ul>    
-        <div class='container'>
+        <div id='container'>
             <video id='video-local' controls autoplay></video>
-            <div id='vedios'></div>
         </div>
         
         <script src='//cdn.bootcdn.net/ajax/libs/socket.io/3.0.4/socket.io.js'></script>
@@ -40,7 +39,7 @@
             return !! (navigator.mediaDevices.getUserMedia || navigator.webkitgGetUserMedia || navigator.mozGetUserMedia || navigator.getUserMedia)
         }
 
-        const vedioEle=document.getElementById('video-local');
+        const videoEle=document.getElementById('video-local');
 
         window.onload= ()=>{
             initCamera();
@@ -49,9 +48,10 @@
         //peer connection
         var pc=[];
 
-        const iceServer={
-            /*under construction*/
-        }
+        const iceServer = {
+            iceServers: [{ urls: ["stun:ss-turn1.xirsys.com"] }, 
+            { username: "CEqIDkX5f51sbm7-pXxJVXePoMk_WB7w2J5eu0Bd00YpiONHlLHrwSb7hRMDDrqGAAAAAF_OT9V0dWR1d2Vi", credential: "446118be-38a4-11eb-9ece-0242ac140004", urls: ["turn:ss-turn1.xirsys.com:80?transport=udp", "turn:ss-turn1.xirsys.com:3478?transport=udp"] }]
+        };
 
         var localStream = null;
 
@@ -62,7 +62,7 @@
                     audio : false
                 }, (stream)=>{
                     localStream = stream;
-                    vedioEle.srcObject = stream;
+                    videoEle.srcObject = stream;
                 }, (err)=>{
                     console.log('开启媒体失败',err.naem,err.message);
                 }) 
@@ -72,9 +72,7 @@
         }
 
         function startCall(parterName, createOffer){
-
             pc[parterName]= new RTCPeerConnection(iceServer);
-
             if(localStream){
                 localStream.getTracks().forEach((track)=>{
                     pc[parterName].addTrack(track, localStream);
@@ -83,11 +81,11 @@
             else{
                 if(canGetUserMediaUse()){
                     getUserMedia({
-                        vedio:true,
+                        video:true,
                         audio:false
                     }, function(stream){
                         localStream = stream;
-                        vedioEle.srcObject=stream;
+                        videoEle.srcObject=stream;
 
                     }, function(error){
                         console.log('访问用户媒体失败',err.naem,err.message);
@@ -95,57 +93,55 @@
                 }
                 else alert('浏览器不兼容');
             }
-            
             if(createOffer){
                 pc[parterName].onnegotiationneeded =()=>{
                     pc[parterName].createOffer().then((offer)=>{
                         return pc[parterName].setLocalDescription(offer);
                     }).then(()=>{
+                        /*console.log(pc[parterName].localDescription);
+                        console.log('!!');*/
                         socket.emit('sdp',{
-                            type : 'vedio-offer',
-                            description : pc[parterName].setLocalDescription,
+                            type : 'video-offer',
+                            description: pc[parterName].localDescription,
                             to : parterName,
                             sender : socket.id
-
                         })
                     })
                 }
-
-                pc[parterName].onicecandidate = ({candidata})=>{
-                    socket.emit('ice candidates', {
-                        candidate : candidate,
-                        to : parterName,
-                        sender : socket.id
-                    })
-                }
-
-                pc[parterName].ontrack = (ev)=>{
-                    let str=ev.streams[0];
-                    if(document.getElementById(`${parterName}-vedio`)){
-                        document.getElementById(`${parterName}-vedio`).srcObject=str;
-                    }
-                    else{
-
-                        let newVedio = document.createElement('vedio');
-                        newVedio.id=`${parterName}-vedio`;
-                        newVedio.autoplay=true;
-                        newVedio.controls=true;
-                        //newVedio.className='remote-vedio';
-                        newVedio.srcObject=str;
-
-                        document.getElementById('vedios').appendChild(newVedio);
-                    }
-                }
-
-
             }
+        pc[parterName].onicecandidate = ({candidate})=>{
+            console.log('!!! '+candidate)
+            socket.emit('ice candidates', {
+                candidate : candidate,
+                to : parterName,
+                sender : socket.id
+            });
+        };
 
+        pc[parterName].ontrack = (ev)=>{
+            let str=ev.streams[0];
+            if(document.getElementById(`${parterName}-video`)){
+                document.getElementById(`${parterName}-video`).srcObject=str;
+            }
+            else{
+                let newVideo = document.createElement('video');
+                newVideo.id=`${parterName}-video`;
+                newVideo.autoplay=true;
+                newVideo.controls=true;
+                        //newVideo.className='remote-video';
+                newVideo.srcObject=str;
+                document.getElementById('container').appendChild(newVideo);
+             }
         }
 
-        var socket = io('//');
+        }
+        
+        var socket = io();
 
         socket.on('connect', ()=>{
+            
             pc.push(socket.id);
+            console.log(pc);
             console.log('user connect '+socket.id);
             document.getElementById('user').innerText= socket.id;
             socket.emit('new user on', {
@@ -162,7 +158,7 @@
                 newbutton.innerText='通话';
                 newbutton.onclick=function(){
                     console.log('加密通话');
-                    startCall(document.getElementById(data.sender), true);
+                    startCall(document.getElementById(data.sender).id, true);
                 }
                 newli.appendChild(newbutton);
                 if(!!userlist) userlist.appendChild(newli);
@@ -178,7 +174,8 @@
                 newbutton.innerText='通话';
                 newbutton.onclick=function(){
                     /*onclick不是click*/
-                    console.log('加密通话')
+                    console.log('加密通话');
+                    startCall(document.getElementById(data.sender).id, true);
                 }
                 newli.appendChild(newbutton);
                 if(!!userlist) userlist.appendChild(newli);
@@ -188,7 +185,6 @@
 
             })
             socket.on('user disconnected',(data)=>{
-                console.log(data);
                 document.getElementById(data).remove();/*下线*/
             })
         })
@@ -196,27 +192,28 @@
         socket.on('sdp',(data)=>{
             if(data.description.type === 'offer'){
                 startCall(data.sender, false);
-                let desc = RTCSessionDescription(data.description);
+                var desc =new RTCSessionDescription(data.description);
+                
                 pc[data.sender].setRemoteDescription(desc).then(()=>{
-                    pc[data.sender].createAswer().then((answer)=>{
+                    pc[data.sender].createAnswer().then((answer)=>{
                         return pc[data.sender].setLocalDescription(answer);
-                    })
-                }).then(()=>{
+                    }).then(()=>{
                     socket.emit('sdp', {
-                        type : 'vedio-answer',
+                        type : 'video-answer',
                         description : pc[data.sender].localDescription,
                         to : data.sender,
                         sender : socket.id
                     })
                 }).catch();
-            }
+            })
+        }
             else if(data.description.type === 'answer'){
                 pc[data.sender].setRemoteDescription(new RTCSessionDescription(data.description));
             }
         })
 
         socket.on('ice candidates', (data)=>{
-            console.log('ice candidate' + data.candidate);
+            console.log('ice candidate: ' + data.candidate);
             if(data.candidate){
                 var candidate=new RTCIceCandidate(data.candidate);
                 pc[data.sender].addIceCandidate(candidate).catch();
@@ -225,7 +222,7 @@
 
         </script>
     <style type='text/css'>
-        .container{
+        #container{
             width:1000px;
             height:800px;
             display:flex;
@@ -234,7 +231,7 @@
             align-items: center;/*副軸居中*/
 
         }
-        .container > vedio{
+        #container > video{
             width:50%;
             height:50%;
         }

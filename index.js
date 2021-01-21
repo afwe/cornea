@@ -28,11 +28,15 @@ app.get('/camera',(req,res)=>{
     res.sendFile(__dirname + '/camera.html');
 })
 
-http.listen(4000,()=>{
+app.get('/a',(req,res)=>{
+    res.sendFile(__dirname + '/a.html');
+})
+
+http.listen(5000,()=>{
     console.log('http:???');
 })
 
-io.on('connect',(socket)=>{
+io.on('connection',(socket)=>{
     //链接加入
     socket.join(socket.id);
 
@@ -66,8 +70,8 @@ io.on('connect',(socket)=>{
     })/*回响*/
 
     socket.on('sdp', (data)=>{
-        console.log('sdp');
-        console.log(data.description);
+        /*console.log('sdp');
+        console.log(data);*/
         socket.to(data.to).emit('sdp', {
             description: data.description, 
             sender: data.sender
@@ -75,9 +79,9 @@ io.on('connect',(socket)=>{
     })
 
     socket.on('ice candidates', (data)=>{
-        console.log('ice candidate: '+data);
-        socket.to(data.to).emit('ice candidates ',{
-            cadidate: data.candidates, 
+        console.log(data.candidate)
+        socket.to(data.to).emit('ice candidates',{
+            candidate: data.candidate, 
             sender: data.sender
         })
     })
